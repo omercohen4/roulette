@@ -15,7 +15,7 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=1792515702"></script>
+<script src="firebase-config.js?v=1792518248"></script>
 <script>window.GAME_URL = "https://omercohen4.github.io/roulette/";</script>
 </head>
 <body>
@@ -180,7 +180,7 @@ button{cursor:pointer}
 <script>
 (function () {
 'use strict';
-var WHEEL = 'assets/thumb.webp?v=1792515702', BOWL = 'assets/bowl.webp?v=1792515702', ROTOR = 'assets/rotor.webp?v=1792515702', LIGHT = 'assets/light.webp?v=1792515702';
+var WHEEL = 'assets/thumb.webp?v=1792518248', BOWL = 'assets/bowl.webp?v=1792518248', ROTOR = 'assets/rotor.webp?v=1792518248', LIGHT = 'assets/light.webp?v=1792518248';
 var ballAngle = 0, ballRel = 0;
 function wheelLayers(rotorId, rotorDeg, ballHTML) {
   return '<img src="' + BOWL + '" alt=""><div class="w-rotor"' + (rotorId ? ' id="' + rotorId + '"' : '') + ' style="position:absolute;inset:0;transform:rotate(' + (rotorDeg || 0) + 'deg)"><img src="' + ROTOR + '" alt="">' + (ballHTML || '') + '</div><img src="' + LIGHT + '" alt="" style="pointer-events:none">';
@@ -849,7 +849,7 @@ function viewTable() {
     return '<button class="chip' + (S.chip === c.v ? ' on' : '') + '" data-act="chip" data-v="' + c.v + '" aria-label="$' + c.v + '" aria-pressed="' + (S.chip === c.v) + '" style="--c:' + c.c + ';--d:' + c.d + ';--s:' + c.s + ';--t:' + c.t + '"><span>' + c.v + '</span></button>';
   }).join('') + '</div>';
   h += '<div class="row"><button class="icon-btn" data-act="undo" aria-label="Undo" style="width:46px;height:46px">' + ICON.undo + '</button><button class="icon-btn" data-act="clear" aria-label="Clear" style="width:46px;height:46px">' + ICON.clear + '</button>';
-  h += '<button class="pill-btn" data-act="double" style="height:46px;font-size:13px">×2</button><span class="grow"></span>';
+  h += '<span class="grow"></span>';
   h += '<button class="gold" data-act="spin" style="letter-spacing:.16em">' + ICON.spin + t('spin') + '</button></div></div></div>';
   return h;
 }
@@ -1133,12 +1133,6 @@ document.addEventListener('click', function (ev) {
   if (act === 'chip') { S.chip = +el.getAttribute('data-v'); render(); return; }
   if (act === 'undo') { var u = S.order.pop(); if (u) { S.bets[u[0]] -= u[1]; if (S.bets[u[0]] <= 0) delete S.bets[u[0]]; } updateHud(); paintChips(); return; }
   if (act === 'clear') { S.bets = {}; S.order = []; updateHud(); paintChips(); return; }
-  if (act === 'double') {
-    var p = me(); if (!p) return;
-    if (totalBet() * 2 > (p.balance || 0)) { toast(t('no_money')); return; }
-    Object.keys(S.bets).forEach(function (k) { S.order.push([k, S.bets[k]]); S.bets[k] *= 2; });
-    updateHud(); paintChips(); return;
-  }
   if (act === 'spin') { spin(false); return; }
   if (act === 'rebet') { closeLayer(); go('table'); spin(true); return; }
   if (act === 'newbets') { closeLayer(); go('table'); boardRise(); return; }
