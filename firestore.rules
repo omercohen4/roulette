@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// Paste this into Firebase console > Firestore Database > Rules, then Publish.
+// Anyone can read the leaderboard. New players start with exactly $100.
+// A player's name, PIN hash and salt can never be changed, and nothing can be deleted.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function validPlayer(d) {
+      return d.name is string && d.name.size() >= 2 && d.name.size() <= 16
+        && d.balance is number && d.balance >= 0 && d.balance <= 1000000
+        && d.pinHash is string && d.salt is string
+        && d.groups is list && d.groups.size() <= 20
+        && d.history is list && d.history.size() <= 12;
+    }
+
+    match /players/{id} {
+      allow read: if true;
+      allow create: if validPlayer(request.resource.data) && request.resource.data.balance == 100;
+      allow update: if validPlayer(request.resource.data)
+        && request.resource.data.name == resource.data.name
+        && request.resource.data.pinHash == resource.data.pinHash
+        && request.resource.data.salt == resource.data.salt;
+      allow delete: if false;
+    }
+
+    match /groups/{code} {
+      allow read: if true;
+      allow create: if request.resource.data.name is string
+        && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 24;
+      allow update, delete: if false;
+    }
+  }
+}
