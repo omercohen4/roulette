@@ -15,7 +15,7 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=1792518248"></script>
+<script src="firebase-config.js?v=1792519083"></script>
 <script>window.GAME_URL = "https://omercohen4.github.io/roulette/";</script>
 </head>
 <body>
@@ -170,6 +170,13 @@ button{cursor:pointer}
 .wel-title{margin:0;font-family:var(--display);font-weight:900;font-size:clamp(46px,15vw,68px);line-height:.95;text-shadow:0 4px 24px rgba(0,0,0,.5)}
 @keyframes idle{to{transform:rotate(360deg)}}
 #app.lock{height:100%;overflow:hidden}
+/* profile */
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.stat{padding:12px 14px;border-radius:14px;background:var(--glass);border:1px solid var(--hair);display:flex;flex-direction:column;gap:3px;min-width:0}
+.stat .lb{font-size:11px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.stat .vl{font-family:var(--display);font-weight:700;font-size:22px;font-variant-numeric:lining-nums tabular-nums;line-height:1.1}
+.stat .sub{font-size:11px;color:var(--muted)}
+.ratio{display:flex;height:12px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.08)}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 
@@ -180,7 +187,7 @@ button{cursor:pointer}
 <script>
 (function () {
 'use strict';
-var WHEEL = 'assets/thumb.webp?v=1792518248', BOWL = 'assets/bowl.webp?v=1792518248', ROTOR = 'assets/rotor.webp?v=1792518248', LIGHT = 'assets/light.webp?v=1792518248';
+var WHEEL = 'assets/thumb.webp?v=1792519083', BOWL = 'assets/bowl.webp?v=1792519083', ROTOR = 'assets/rotor.webp?v=1792519083', LIGHT = 'assets/light.webp?v=1792519083';
 var ballAngle = 0, ballRel = 0;
 function wheelLayers(rotorId, rotorDeg, ballHTML) {
   return '<img src="' + BOWL + '" alt=""><div class="w-rotor"' + (rotorId ? ' id="' + rotorId + '"' : '') + ' style="position:absolute;inset:0;transform:rotate(' + (rotorDeg || 0) + 'deg)"><img src="' + ROTOR + '" alt="">' + (ballHTML || '') + '</div><img src="' + LIGHT + '" alt="" style="pointer-events:none">';
@@ -487,6 +494,7 @@ function render() {
   else if (v === 'invite') html = viewInvite();
   else if (v === 'broke') html = viewBroke();
   else if (v === 'lucky') html = viewLucky();
+  else if (v === 'profile') html = viewProfile();
   $('app').innerHTML = html;
   if (v === 'table') { paintChips(); fitTable(); }
   if (v === 'newplayer' || v === 'creategroup') { var f = document.querySelector('[data-autofocus]'); if (f && !f.value) f.focus(); }
@@ -512,6 +520,95 @@ var ICON = {
 };
 function backBtn(act, label) {
   return '<button class="icon-btn" data-act="' + act + '" aria-label="' + esc(label) + '">' + ICON.back + '</button>';
+}
+
+// ---------- personal stats, kept on the player document ----------
+function emptyStats() {
+  return {spins: 0, wagered: 0, returned: 0, gain: 0, loss: 0, wins: 0, losses: 0, pushes: 0, bigWin: 0, bigLoss: 0, bigBet: 0,
+    winStreak: 0, loseStreak: 0, cur: 0, peak: START, lucky: 0, luckyWon: 0, nums: {}, types: {}, trend: []};
+}
+function statsOf(p) { return Object.assign(emptyStats(), JSON.parse(JSON.stringify((p && p.stats) || {}))); }
+var BET_TYPES = {n: 'Single number', sh: 'Split', sv: 'Split', sz: 'Split', st: 'Row', sl: 'Two rows', co: 'Corner', tr: 'Zero trio', ff: 'First four',
+  col: 'Column', doz: 'Dozen', red: 'Red / Black', black: 'Red / Black', even: 'Even / Odd', odd: 'Even / Odd', low: 'Low / High', high: 'Low / High'};
+function recordSpin(p, bets, total, returned, result, newBal) {
+  var st = statsOf(p), net = returned - total;
+  st.spins++; st.wagered += total; st.returned += returned; st.bigBet = Math.max(st.bigBet, total);
+  if (net > 0) { st.wins++; st.gain += net; st.bigWin = Math.max(st.bigWin, net); st.cur = st.cur > 0 ? st.cur + 1 : 1; st.winStreak = Math.max(st.winStreak, st.cur); }
+  else if (net < 0) { st.losses++; st.loss -= net; st.bigLoss = Math.max(st.bigLoss, -net); st.cur = st.cur < 0 ? st.cur - 1 : -1; st.loseStreak = Math.max(st.loseStreak, -st.cur); }
+  else { st.pushes++; st.cur = 0; }
+  st.peak = Math.max(st.peak, newBal);
+  st.nums[result] = (st.nums[result] || 0) + 1;
+  Object.keys(bets).forEach(function (k) { var ty = BET_TYPES[k.split(':')[0]] || 'Other'; st.types[ty] = (st.types[ty] || 0) + 1; });
+  st.trend = st.trend.concat([newBal]).slice(-40);
+  return st;
+}
+function recordLucky(p, prize, newBal) {
+  var st = statsOf(p);
+  st.lucky++; st.luckyWon += prize; st.peak = Math.max(st.peak, newBal);
+  st.trend = st.trend.concat([newBal]).slice(-40);
+  return st;
+}
+function topKey(map) {
+  var best = null, n = 0;
+  Object.keys(map || {}).forEach(function (k) { if (map[k] > n) { n = map[k]; best = k; } });
+  return best == null ? null : [best, n];
+}
+
+// ---------- profile ----------
+function sparkline(vals) {
+  if (vals.length < 2) return '';
+  var W = 320, H = 80, lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+  if (hi === lo) { hi += 1; lo -= 1; }
+  var pts = vals.map(function (v, i) { return [(i / (vals.length - 1) * (W - 8) + 4).toFixed(1), (H - 8 - (v - lo) / (hi - lo) * (H - 16)).toFixed(1)]; });
+  var line = pts.map(function (q) { return q.join(','); }).join(' ');
+  var last = pts[pts.length - 1];
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" role="img" aria-label="Chips over your last ' + vals.length + ' spins, from ' + money(vals[0]) + ' to ' + money(vals[vals.length - 1]) + '" preserveAspectRatio="none">' +
+    '<line x1="0" y1="' + (H - 8) + '" x2="' + W + '" y2="' + (H - 8) + '" stroke="rgba(185,201,240,.18)" stroke-width="1"/>' +
+    '<polygon points="4,' + (H - 8) + ' ' + line + ' ' + last[0] + ',' + (H - 8) + '" fill="#E2BE6A" fill-opacity=".14"/>' +
+    '<polyline points="' + line + '" fill="none" stroke="#E2BE6A" stroke-width="2.2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>' +
+    '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="3.5" fill="#F5DB98"/></svg>';
+}
+function pl(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+function pct(a, b) { return b ? Math.round(a / b * 1000) / 10 + '%' : '—'; }
+function viewProfile() {
+  var p = me(); if (!p) { S.view = 'board'; return viewBoard(); }
+  var st = statsOf(p), net = st.returned - st.wagered;
+  var rank = ranked(Store.players).map(function (x) { return x.id; }).indexOf(p.id) + 1;
+  var tile = function (lb, vl, sub, color) { return '<div class="stat"><span class="lb">' + lb + '</span><span class="vl"' + (color ? ' style="color:' + color + '"' : '') + '>' + vl + '</span>' + (sub ? '<span class="sub">' + sub + '</span>' : '') + '</div>'; };
+  var h = '<div class="screen">';
+  h += '<div class="row">' + backBtn('profileback', t('back')) + '<h1 class="h1 grow" style="font-size:26px">Profile</h1>' + langToggle() + '</div>';
+  h += '<div class="card row" style="gap:14px">' + avatar(p, 64, '0 0 30px rgba(120,190,255,.35)') + '<div class="grow" style="display:flex;flex-direction:column;gap:3px"><span class="num" style="font-size:24px;font-weight:900;line-height:1.1">' + esc(p.name) + '</span>';
+  h += '<span class="small muted">#' + rank + ' on the board · since ' + new Date(p.createdAt || Date.now()).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'}) + '</span></div>';
+  h += '<div style="text-align:end"><span class="eyebrow" style="font-size:10px">Chips</span><div class="num" style="font-size:24px;color:var(--gold-hi)">' + money(p.balance || 0) + '</div></div></div>';
+  if (!st.spins && !st.lucky) {
+    h += '<p class="card" style="margin:0;font-size:14px;line-height:1.5;color:var(--soft)">No stats yet. Play a few spins and your numbers will show up here.</p>';
+    h += '<button class="gold" data-act="totable" style="margin-top:auto">Go to the table</button></div>';
+    return h;
+  }
+  h += '<div class="card" style="display:flex;flex-direction:column;gap:8px"><div class="row" style="justify-content:space-between"><span class="eyebrow">Chips over time</span><span class="small muted">peak ' + money(st.peak) + '</span></div>' + (sparkline(st.trend) || '<span class="small muted">Play more spins to see your chart.</span>') + '</div>';
+  var played = st.spins || 1;
+  h += '<div class="card" style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><span class="eyebrow">Spins won and lost</span><span class="small muted">' + st.spins + ' spins</span></div>';
+  h += '<div class="ratio"><span style="width:' + (st.wins / played * 100) + '%;background:#8FE0AE"></span><span style="width:' + (st.pushes / played * 100) + '%;background:#B9C9F0"></span><span style="width:' + (st.losses / played * 100) + '%;background:#F29A9F"></span></div>';
+  h += '<div class="row small" style="justify-content:space-between"><span><span style="color:#8FE0AE">●</span> Won ' + pct(st.wins, st.spins) + '</span><span><span style="color:#B9C9F0">●</span> Even ' + pct(st.pushes, st.spins) + '</span><span><span style="color:#F29A9F">●</span> Lost ' + pct(st.losses, st.spins) + '</span></div></div>';
+  var hot = topKey(st.nums), fav = topKey(st.types);
+  h += '<div class="stats">';
+  h += tile('Net result', (net >= 0 ? '+' : '−') + money(Math.abs(net)), 'won back ' + pct(st.returned, st.wagered) + ' of bets', net >= 0 ? 'var(--win)' : 'var(--lose)');
+  h += tile('Spins played', st.spins.toLocaleString('en-US'), st.wins + ' won · ' + st.losses + ' lost');
+  h += tile('Total won', '+' + money(st.gain), 'on winning spins', 'var(--win)');
+  h += tile('Total lost', '−' + money(st.loss), 'on losing spins', 'var(--lose)');
+  h += tile('Biggest win', '+' + money(st.bigWin), 'in one spin', 'var(--gold-hi)');
+  h += tile('Biggest loss', '−' + money(st.bigLoss), 'in one spin');
+  h += tile('Total bet', money(st.wagered), 'average ' + money(st.spins ? st.wagered / st.spins : 0) + ' a spin');
+  h += tile('Biggest bet', money(st.bigBet), 'in one spin');
+  h += tile('Best streak', pl(st.winStreak, 'win', 'wins'), 'in a row');
+  h += tile('Worst streak', pl(st.loseStreak, 'loss', 'losses'), st.cur > 0 ? 'now on ' + pl(st.cur, 'win', 'wins') : (st.cur < 0 ? 'now on ' + pl(-st.cur, 'loss', 'losses') : 'in a row'));
+  h += tile('Hot number', hot ? '<span class="hb c-' + colorOf(+hot[0]) + '" style="display:inline-flex;width:30px;height:30px;font-size:14px;vertical-align:middle">' + hot[0] + '</span>' : '—', hot ? 'landed ' + pl(hot[1], 'time', 'times') + ' for you' : '');
+  h += tile('Favourite bet', fav ? esc(fav[0]) : '—', fav ? 'placed ' + pl(fav[1], 'time', 'times') : '');
+  h += tile('Lucky Wheel', pl(st.lucky, 'spin', 'spins'), 'won ' + money(st.luckyWon) + ' in total');
+  h += tile('Peak chips', money(st.peak), 'your highest balance');
+  h += '</div>';
+  h += '<p class="notice">Stats count from the first spin after this page was added.</p></div>';
+  return h;
 }
 
 // ---------- welcome ----------
@@ -568,7 +665,7 @@ function viewBoard() {
   var h = '<div class="screen">';
   h += '<div class="row"><img src="' + WHEEL + '" alt="" style="width:60px;height:60px;border-radius:50%;box-shadow:0 0 0 2px rgba(226,190,106,.5),0 0 30px rgba(120,190,255,.55)">';
   h += '<div class="grow"><h1 class="h1" style="font-size:34px">Roulette</h1><div class="eyebrow" style="color:var(--gold);letter-spacing:.3em">EUROPEAN · SINGLE ZERO</div></div>' + langToggle() + '</div>';
-  if (me()) h += '<div class="row small" style="justify-content:space-between"><span class="muted">' + esc(t('playing_as', {name: me().name})) + '</span><span class="row" style="gap:8px"><button class="pill-btn" data-act="totable" style="height:36px">' + t('spin') + '</button><button class="pill-btn" data-act="logout" style="height:36px">' + t('log_out') + '</button></span></div>';
+  if (me()) h += '<div class="row small" style="justify-content:space-between"><span class="muted">' + esc(t('playing_as', {name: me().name})) + '</span><span class="row" style="gap:8px"><button class="pill-btn" data-act="totable" style="height:36px">' + t('spin') + '</button><button class="pill-btn" data-act="profile" style="height:36px">Profile</button><button class="pill-btn" data-act="logout" style="height:36px">' + t('log_out') + '</button></span></div>';
   h += '<div class="tabs" role="tablist">' + tabs + '</div>';
 
   if (Store.mode === 'loading') return h + '<p class="notice" style="margin-top:40px">' + t('loading') + '</p></div>';
@@ -838,7 +935,7 @@ function viewTable() {
   var hist = (p.history || []).slice(0, 7);
   var h = '<div class="screen" style="gap:10px">';
   h += '<div class="row" style="gap:8px"><button class="icon-btn" data-act="leave" aria-label="' + t('leave') + '" style="transform:scaleX(-1)">' + ICON.exit + '</button>';
-  h += '<div class="hud"><div><span class="lb">' + t('balance').toUpperCase() + '</span><span class="vl" id="hud-bal">' + money((p.balance || 0) - totalBet()) + '</span></div><span class="sep"></span><div><span class="lb">' + t('bet').toUpperCase() + '</span><span class="vl" id="hud-bet" style="color:var(--gold-hi)">' + money(totalBet()) + '</span></div></div>' + langToggle() + '</div>';
+  h += '<div class="hud"><div><span class="lb">' + t('balance').toUpperCase() + '</span><span class="vl" id="hud-bal">' + money((p.balance || 0) - totalBet()) + '</span></div><span class="sep"></span><div><span class="lb">' + t('bet').toUpperCase() + '</span><span class="vl" id="hud-bet" style="color:var(--gold-hi)">' + money(totalBet()) + '</span></div></div><button class="icon-btn" data-act="profile" aria-label="Your profile" style="padding:0;overflow:hidden">' + avatar(p, 42) + '</button>' + langToggle() + '</div>';
   h += '<div class="row" style="gap:14px"><img id="tablewheel" src="' + WHEEL + '" alt="" style="width:84px;height:84px;flex:none;border-radius:50%;box-shadow:0 0 0 2px rgba(226,190,106,.5),0 0 30px rgba(120,190,255,.45),0 10px 20px rgba(0,0,0,.5)">';
   h += '<div style="display:flex;flex-direction:column;gap:8px;min-width:0"><span class="eyebrow" style="font-size:10px">' + t('last') + '</span><div class="hist" dir="ltr">' +
     (hist.length ? hist.map(function (n) { return '<span class="hb c-' + colorOf(n) + '">' + n + '</span>'; }).join('') : '<span class="small muted">' + t('none_yet') + '</span>') + '</div></div></div>';
@@ -900,7 +997,8 @@ async function spin(useLast) {
   Sound.spin(dur / 1000, plan);
   await animateSpin(result, dur, plan);
   S.lastBets = bets; S.bets = {}; S.order = [];
-  try { await Store.patchPlayer(p.id, {balance: newBal, history: hist, lastPlayed: Date.now()}); } catch (e) { toast(t('err_save')); }
+  var stats = recordSpin(p, bets, total, returned, result, newBal);
+  try { await Store.patchPlayer(p.id, {balance: newBal, history: hist, lastPlayed: Date.now(), stats: stats}); } catch (e) { toast(t('err_save')); }
   S.spinning = false;
   showResult(result, lines, returned, total, newBal);
 }
@@ -1073,7 +1171,7 @@ async function luckySpin() {
   var used = p.luckyDay === todayStr() ? (p.luckyUsed || 0) + 1 : 1;
   setTimeout(async function () {
     var newBal = (p.balance || 0) + prize;
-    try { await Store.patchPlayer(p.id, {balance: newBal, luckyDay: todayStr(), luckyUsed: used}); } catch (e) { toast(t('err_save')); }
+    try { await Store.patchPlayer(p.id, {balance: newBal, luckyDay: todayStr(), luckyUsed: used, stats: recordLucky(p, prize, newBal)}); } catch (e) { toast(t('err_save')); }
     S.spinning = false;
     var res = $('luckyres'), act = $('luckyact');
     if (prize) Sound.win(prize === 5); else Sound.lose();
@@ -1127,6 +1225,8 @@ document.addEventListener('click', function (ev) {
     try { navigator.clipboard.writeText(link).then(ok, fail); } catch (e) { fail(); }
     return;
   }
+  if (act === 'profile') { if (S.view !== 'profile') S.profileBack = S.view; S.bets = {}; S.order = []; go('profile'); return; }
+  if (act === 'profileback') { var bk = S.profileBack || 'board'; if (bk === 'table') enterTable(); else go(bk); return; }
   if (act === 'logout') { setSession(null); go('board'); return; }
   if (act === 'totable') { closeLayer(); enterTable(); return; }
   if (act === 'leave') { S.bets = {}; S.order = []; go('board'); return; }
