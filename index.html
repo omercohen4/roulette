@@ -15,8 +15,8 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=1792571546"></script>
-<script>window.GAME_URL = "https://omercohen4.github.io/roulette/"; window.APP_VERSION = "1792571546";</script>
+<script src="firebase-config.js?v=1792572260"></script>
+<script>window.GAME_URL = "https://omercohen4.github.io/roulette/"; window.APP_VERSION = "1792572260";</script>
 </head>
 <body>
 <title>Roulette</title>
@@ -170,6 +170,14 @@ button{cursor:pointer}
 .wel-title{margin:0;font-family:var(--display);font-weight:900;font-size:clamp(46px,15vw,68px);line-height:.95;text-shadow:0 4px 24px rgba(0,0,0,.5)}
 @keyframes idle{to{transform:rotate(360deg)}}
 #app.lock{height:100%;overflow:hidden}
+/* result marked on the table */
+.win-cell{position:relative;z-index:3;box-shadow:0 0 0 3px #F5DB98 inset,0 0 16px 4px rgba(245,219,152,.8);animation:winpulse 1.1s ease-in-out 4}
+.win-out{box-shadow:0 0 0 2px rgba(245,219,152,.75) inset}
+@keyframes winpulse{50%{box-shadow:0 0 0 3px #fff inset,0 0 28px 9px rgba(245,219,152,1)}}
+.bchip.won{box-shadow:0 0 0 2px #F5DB98,0 0 14px 4px rgba(245,219,152,.85),0 2px 0 var(--d)}
+.bchip.lost{animation:swept .7s ease-in forwards}
+@keyframes swept{to{opacity:0;transform:translateY(18px) scale(.6)}}
+.result-bar{align-self:stretch;display:flex;align-items:center;gap:10px;min-height:34px;padding:4px 12px 4px 4px;box-sizing:border-box;border-radius:17px;background:var(--glass);border:1px solid rgba(226,190,106,.45);font-size:13px;margin-bottom:14px}
 /* profile */
 .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .stat{padding:12px 14px;border-radius:14px;background:var(--glass);border:1px solid var(--hair);display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -187,7 +195,7 @@ button{cursor:pointer}
 <script>
 (function () {
 'use strict';
-var WHEEL = 'assets/thumb.webp?v=1792571546', BOWL = 'assets/bowl.webp?v=1792571546', ROTOR = 'assets/rotor.webp?v=1792571546', LIGHT = 'assets/light.webp?v=1792571546';
+var WHEEL = 'assets/thumb.webp?v=1792572260', BOWL = 'assets/bowl.webp?v=1792572260', ROTOR = 'assets/rotor.webp?v=1792572260', LIGHT = 'assets/light.webp?v=1792572260';
 var ballAngle = 0, ballRel = 0;
 function wheelLayers(rotorId, rotorDeg, ballHTML) {
   return '<img src="' + BOWL + '" alt=""><div class="w-rotor"' + (rotorId ? ' id="' + rotorId + '"' : '') + ' style="position:absolute;inset:0;transform:rotate(' + (rotorDeg || 0) + 'deg)"><img src="' + ROTOR + '" alt="">' + (ballHTML || '') + '</div><img src="' + LIGHT + '" alt="" style="pointer-events:none">';
@@ -498,7 +506,7 @@ function render() {
   else if (v === 'lucky') html = viewLucky();
   else if (v === 'profile') html = viewProfile();
   $('app').innerHTML = html;
-  if (v === 'table') { paintChips(); fitTable(); }
+  if (v === 'table') { paintChips(); markResult(); fitTable(); }
   if (v === 'newplayer' || v === 'creategroup') { var f = document.querySelector('[data-autofocus]'); if (f && !f.value) f.focus(); }
 }
 
@@ -642,11 +650,11 @@ function fitTable() {
   root.style.setProperty('--row', '30px');
   if (img) { img.style.width = img.style.height = '84px'; }
   var row = 30, wheel = 84;
-  for (var i = 0; i < 8; i++) {
+  for (var i = 0; i < 24; i++) {
     var over = root.scrollHeight - window.innerHeight;
     if (over <= 0) break;
-    if (row > 20) { row = Math.max(20, row - Math.max(1, Math.ceil(over / 12))); root.style.setProperty('--row', row + 'px'); }
-    else if (img && wheel > 52) { wheel = Math.max(52, wheel - over); img.style.width = img.style.height = wheel + 'px'; }
+    if (row > 19) { row = Math.max(19, row - Math.max(1, Math.ceil(over / 12))); root.style.setProperty('--row', row + 'px'); }
+    else if (img && wheel > 44) { wheel = Math.max(44, wheel - over); img.style.width = img.style.height = wheel + 'px'; }
     else break;
   }
 }
@@ -909,6 +917,7 @@ function keyFromPoint(fx, fy) {
 function totalBet() { var s = 0; Object.keys(S.bets).forEach(function (k) { s += S.bets[k]; }); return s; }
 function placeBet(key) {
   if (S.spinning) return;
+  if (S.lastResult) { S.lastResult = null; render(); }
   var p = me(); if (!p) return;
   if (totalBet() + S.chip > (p.balance || 0)) { toast(t('no_money')); return; }
   S.bets[key] = (S.bets[key] || 0) + S.chip; S.order.push([key, S.chip]);
@@ -949,14 +958,27 @@ function viewTable() {
     (hist.length ? hist.map(function (n) { return '<span class="hb c-' + colorOf(n) + '">' + n + '</span>'; }).join('') : '<span class="small muted">' + t('none_yet') + '</span>') + '</div></div></div>';
   h += boardHTML();
   h += '<div style="margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-top:2px">';
-  h += '<div class="hint"><span style="width:8px;height:8px;border-radius:50%;background:var(--gold);flex:none"></span>' + esc(t('chip_sel', {v: S.chip})) + '</div>';
+  h += S.lastResult ? resultBarHTML() : hintHTML();
   h += '<div class="rack" dir="ltr">' + CHIPS.map(function (c) {
     return '<button class="chip' + (S.chip === c.v ? ' on' : '') + '" data-act="chip" data-v="' + c.v + '" aria-label="$' + c.v + '" aria-pressed="' + (S.chip === c.v) + '" style="--c:' + c.c + ';--d:' + c.d + ';--s:' + c.s + ';--t:' + c.t + '"><span>' + c.v + '</span></button>';
   }).join('') + '</div>';
   h += '<div class="row"><button class="icon-btn" data-act="undo" aria-label="Undo" style="width:46px;height:46px">' + ICON.undo + '</button><button class="icon-btn" data-act="clear" aria-label="Clear" style="width:46px;height:46px">' + ICON.clear + '</button>';
   h += '<span class="grow"></span>';
-  h += '<button class="gold" data-act="spin" style="letter-spacing:.16em">' + ICON.spin + t('spin') + '</button></div></div></div>';
+  if ((p.balance || 0) < 1 && !totalBet()) h += '<button class="gold" data-act="tobroke">' + t('continue') + '</button></div></div></div>';
+  else {
+    if (S.lastBets && !totalBet()) h += '<button class="pill-btn" data-act="rebet" style="height:46px">' + ICON.spin + 'Rebet</button>';
+    h += '<button class="gold" data-act="spin" style="letter-spacing:.16em">' + ICON.spin + t('spin') + '</button></div></div></div>';
+  }
   return h;
+}
+function hintHTML() {
+  return '<div class="hint"><span style="width:8px;height:8px;border-radius:50%;background:var(--gold);flex:none"></span>' + esc(t('chip_sel', {v: S.chip})) + '</div>';
+}
+function resultBarHTML() {
+  var r = S.lastResult, net = r.returned - r.total, col = colorOf(r.n);
+  return '<div class="result-bar" id="resultbar"><span class="hb c-' + col + '" style="flex:none;box-shadow:0 0 0 1.5px var(--gold)">' + r.n + '</span>' +
+    '<span class="grow" style="font-weight:600">' + (r.returned > 0 ? 'You win <span class="num" style="color:var(--gold-hi);font-size:16px">' + money(r.returned) + '</span>' : 'No win this time') + '</span>' +
+    '<span class="num" style="font-size:15px;color:' + (net >= 0 ? 'var(--win)' : 'var(--lose)') + '">' + (net >= 0 ? '+' : '−') + money(Math.abs(net)) + '</span></div>';
 }
 function boardHTML() {
   var h = '<div class="board" dir="ltr">';
@@ -1001,14 +1023,81 @@ async function spin(useLast) {
   var hist = [result].concat(p.history || []).slice(0, 12);
   var dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 600 : 5400 + rand(1000);
   var plan = spinPlan();
-  showSpinOverlay(bets, total, balAfterBet);
+  if (SPIN_STYLE === 'table') showTableSpin(); else showSpinOverlay(bets, total, balAfterBet);
   Sound.spin(dur / 1000, plan);
   await animateSpin(result, dur, plan);
   S.lastBets = bets; S.bets = {}; S.order = [];
   var stats = recordSpin(p, bets, total, returned, result, newBal);
   try { await Store.patchPlayer(p.id, {balance: newBal, history: hist, lastPlayed: Date.now(), stats: stats}); } catch (e) { toast(t('err_save')); }
+  if (SPIN_STYLE === 'table') {
+    await settleTableSpin();
+    S.spinning = false;
+    S.lastResult = {n: result, bets: bets, lines: lines, returned: returned, total: total};
+    closeLayer(); go('table'); markResult();
+    if (returned > 0) Sound.win(returned >= total * 10); else Sound.lose();
+    return;
+  }
   S.spinning = false;
   showResult(result, lines, returned, total, newBal);
+}
+// The corner wheel flies to the middle of the table and grows; the table stays in view, dimmed.
+function showTableSpin() {
+  var small = $('tablewheel'), from = small ? small.getBoundingClientRect() : null;
+  var h = '<div class="overlay" id="spinov" style="background:rgba(2,8,28,.5);display:flex;align-items:center;justify-content:center">';
+  h += '<div class="wheelbox" id="spinbox" style="width:min(330px,86vw,48vh)"><div style="position:absolute;inset:-4%;border-radius:50%;box-shadow:0 34px 60px rgba(0,0,0,.75),0 10px 24px rgba(0,0,0,.5)"></div>';
+  h += wheelLayers('spinwheel', wheelAngle, '<div class="ballarm" id="ballarm" style="transform:rotate(' + (ballAngle - wheelAngle) + 'deg)"><div class="ballarm" id="ballhop"><div class="ball" id="ball"></div></div></div>') + '</div></div>';
+  $('layer').innerHTML = h;
+  if (small) small.style.visibility = 'hidden';
+  try {
+    var ov = $('spinov'), box = $('spinbox');
+    ov.animate([{opacity: 0}, {opacity: 1}], {duration: 380, easing: 'ease-out'});
+    if (from) {
+      var to = box.getBoundingClientRect();
+      var dx = (from.left + from.width / 2) - (to.left + to.width / 2), dy = (from.top + from.height / 2) - (to.top + to.height / 2);
+      box.animate([{transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + (from.width / to.width) + ')'}, {transform: 'none'}], {duration: 750, easing: 'cubic-bezier(.2,.8,.2,1)'});
+    }
+  } catch (e) {}
+}
+// After the ball settles: a short look, then the wheel flies back to its corner.
+function settleTableSpin() {
+  return new Promise(function (resolve) {
+    var box = $('spinbox'), ov = $('spinov'), small = $('tablewheel');
+    setTimeout(function () {
+      try {
+        if (small && box) {
+          var from = box.getBoundingClientRect(), to = small.getBoundingClientRect();
+          var dx = (to.left + to.width / 2) - (from.left + from.width / 2), dy = (to.top + to.height / 2) - (from.top + from.height / 2);
+          box.animate([{transform: 'none'}, {transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + (to.width / from.width) + ')'}], {duration: 550, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards'});
+        }
+        ov.animate([{background: 'rgba(2,8,28,.5)'}, {background: 'rgba(2,8,28,0)'}], {duration: 550, fill: 'forwards'});
+      } catch (e) {}
+      setTimeout(resolve, 560);
+    }, 900);
+  });
+}
+// Mark the winning number on the board, keep the winning chips lit and sweep the losing ones away.
+function markResult() {
+  var r = S.lastResult; if (!r) return;
+  var cell = r.n === 0 ? document.querySelector('[data-bet="n:0"]') : document.querySelector('.numgrid [data-n="' + r.n + '"]');
+  if (cell) cell.classList.add('win-cell');
+  ['red', 'black', 'even', 'odd', 'low', 'high', 'doz:0', 'doz:1', 'doz:2', 'col:0', 'col:1', 'col:2'].forEach(function (k) {
+    if (r.n > 0 && betInfo(k).nums.indexOf(r.n) >= 0) { var b = document.querySelector('[data-bet="' + k + '"]'); if (b) b.classList.add('win-out'); }
+  });
+  var layer = $('chiplayer'), html = '';
+  Object.keys(r.bets).forEach(function (k) {
+    var amt = r.bets[k], info = betInfo(k), hit = info.nums.indexOf(r.n) >= 0, chip = chipFor(amt);
+    var cls = 'bchip ' + (hit ? 'won' : 'lost');
+    if (info.anchor) html += chipHTML(chip, shortAmt(amt), cls, 'left:' + (info.anchor[0] / 3 * 100) + '%;top:' + (info.anchor[1] / 12 * 100) + '%');
+    else { var btn = document.querySelector('[data-bet="' + k + '"]'); if (btn) btn.insertAdjacentHTML('beforeend', chipHTML(chip, shortAmt(amt), cls + ' in-btn')); }
+  });
+  if (layer) layer.insertAdjacentHTML('beforeend', html);
+}
+function clearResult() {
+  if (!S.lastResult) return;
+  S.lastResult = null;
+  document.querySelectorAll('.win-cell,.win-out').forEach(function (el) { el.classList.remove('win-cell', 'win-out'); });
+  document.querySelectorAll('.bchip.won,.bchip.lost').forEach(function (el) { el.remove(); });
+  var bar = $('resultbar'); if (bar) bar.outerHTML = hintHTML();
 }
 function showSpinOverlay(bets, total, bal) {
   var small = $('tablewheel'), from = small ? small.getBoundingClientRect() : null;
@@ -1042,6 +1131,9 @@ function bezier(x1, y1, x2, y2) {
   return { css: 'cubic-bezier(' + [x1, y1, x2, y2].join(',') + ')', speed: function (x) { var t = solve(x), dx = slope(x1, x2, t); return dx < 1e-6 ? 0 : slope(y1, y2, t) / dx; } };
 }
 var SPIN_EASE = bezier(0.33, 0, 0.2, 1);
+// 'table': the corner wheel grows over the table and the result is marked on the board.
+// 'screen': the earlier full-screen spin and result page.
+var SPIN_STYLE = 'table';
 // Plan the ball's fall and bounces like a real ball: each bounce is lower than the last
 // (it keeps 50-70% of its height) and shorter in time (time grows with the square root of height).
 function spinPlan() {
@@ -1264,12 +1356,12 @@ document.addEventListener('click', function (ev) {
   if (act === 'profileback') { var bk = S.profileBack || 'board'; if (bk === 'table') enterTable(); else go(bk); return; }
   if (act === 'logout') { setSession(null); go('board'); return; }
   if (act === 'totable') { closeLayer(); enterTable(); return; }
-  if (act === 'leave') { S.bets = {}; S.order = []; go('board'); return; }
+  if (act === 'leave') { S.bets = {}; S.order = []; S.lastResult = null; go('board'); return; }
   if (act === 'chip') { S.chip = +el.getAttribute('data-v'); render(); return; }
   if (act === 'undo') { var u = S.order.pop(); if (u) { S.bets[u[0]] -= u[1]; if (S.bets[u[0]] <= 0) delete S.bets[u[0]]; } updateHud(); paintChips(); return; }
-  if (act === 'clear') { S.bets = {}; S.order = []; updateHud(); paintChips(); return; }
+  if (act === 'clear') { S.bets = {}; S.order = []; clearResult(); updateHud(); paintChips(); return; }
   if (act === 'spin') { spin(false); return; }
-  if (act === 'rebet') { closeLayer(); go('table'); spin(true); return; }
+  if (act === 'rebet') { closeLayer(); S.lastResult = null; go('table'); spin(true); return; }
   if (act === 'newbets') { closeLayer(); go('table'); boardRise(); return; }
   if (act === 'tobroke') { closeLayer(); go('broke'); return; }
   if (act === 'watchad') { watchAd(); return; }
