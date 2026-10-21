@@ -15,8 +15,8 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=1792565946"></script>
-<script>window.GAME_URL = "https://omercohen4.github.io/roulette/";</script>
+<script src="firebase-config.js?v=1792566236"></script>
+<script>window.GAME_URL = "https://omercohen4.github.io/roulette/"; window.APP_VERSION = "1792566236";</script>
 </head>
 <body>
 <title>Roulette</title>
@@ -187,7 +187,7 @@ button{cursor:pointer}
 <script>
 (function () {
 'use strict';
-var WHEEL = 'assets/thumb.webp?v=1792565946', BOWL = 'assets/bowl.webp?v=1792565946', ROTOR = 'assets/rotor.webp?v=1792565946', LIGHT = 'assets/light.webp?v=1792565946';
+var WHEEL = 'assets/thumb.webp?v=1792566236', BOWL = 'assets/bowl.webp?v=1792566236', ROTOR = 'assets/rotor.webp?v=1792566236', LIGHT = 'assets/light.webp?v=1792566236';
 var ballAngle = 0, ballRel = 0;
 function wheelLayers(rotorId, rotorDeg, ballHTML) {
   return '<img src="' + BOWL + '" alt=""><div class="w-rotor"' + (rotorId ? ' id="' + rotorId + '"' : '') + ' style="position:absolute;inset:0;transform:rotate(' + (rotorDeg || 0) + 'deg)"><img src="' + ROTOR + '" alt="">' + (ballHTML || '') + '</div><img src="' + LIGHT + '" alt="" style="pointer-events:none">';
@@ -1267,6 +1267,21 @@ Store.subs.push(function () {
   if (S.view === 'board' || S.view === 'invite') render();
   if (S.view === 'login' && !Store.player(S.loginId)) go('board');
 });
+// Website only: the home-screen app can stay open for days, so check for a newer version
+// whenever it comes back to the front, and reload when one is out (never mid-spin).
+function checkForUpdate() {
+  if (!window.APP_VERSION || !window.fetch) return;
+  fetch('version.json?t=' + Date.now(), {cache: 'no-store'}).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+    if (!j || !j.v || j.v === window.APP_VERSION || S.spinning || S.view === 'newplayer' || S.view === 'creategroup') return;
+    // try each new version once, so a slow server copy can never cause a reload loop
+    try { if (sessionStorage.getItem('rl.tried') === j.v) return; sessionStorage.setItem('rl.tried', j.v); } catch (e) { return; }
+    location.replace(location.pathname + '?v=' + j.v + location.hash);
+  }).catch(function () {});
+}
+document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') checkForUpdate(); });
+setInterval(checkForUpdate, 5 * 60 * 1000);
+checkForUpdate();
+
 render();
 Store.init().then(function () {
   if (S.me && !Store.player(S.me)) setSession(null);
