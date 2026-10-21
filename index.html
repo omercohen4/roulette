@@ -15,7 +15,7 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=1792519083"></script>
+<script src="firebase-config.js?v=1792565946"></script>
 <script>window.GAME_URL = "https://omercohen4.github.io/roulette/";</script>
 </head>
 <body>
@@ -187,7 +187,7 @@ button{cursor:pointer}
 <script>
 (function () {
 'use strict';
-var WHEEL = 'assets/thumb.webp?v=1792519083', BOWL = 'assets/bowl.webp?v=1792519083', ROTOR = 'assets/rotor.webp?v=1792519083', LIGHT = 'assets/light.webp?v=1792519083';
+var WHEEL = 'assets/thumb.webp?v=1792565946', BOWL = 'assets/bowl.webp?v=1792565946', ROTOR = 'assets/rotor.webp?v=1792565946', LIGHT = 'assets/light.webp?v=1792565946';
 var ballAngle = 0, ballRel = 0;
 function wheelLayers(rotorId, rotorDeg, ballHTML) {
   return '<img src="' + BOWL + '" alt=""><div class="w-rotor"' + (rotorId ? ' id="' + rotorId + '"' : '') + ' style="position:absolute;inset:0;transform:rotate(' + (rotorDeg || 0) + 'deg)"><img src="' + ROTOR + '" alt="">' + (ballHTML || '') + '</div><img src="' + LIGHT + '" alt="" style="pointer-events:none">';
@@ -462,6 +462,8 @@ var hash = (location.hash || '').replace('#', '');
 if (/^join-[A-Z0-9-]{4,12}$/i.test(hash)) S.pendingJoin = hash.slice(5).toUpperCase();
 
 function me() { return S.me ? Store.player(S.me) : null; }
+// One player per device: once a player is created or logged into here, this device belongs to it.
+function ownedPlayer() { return Store.player(lsGet('rl.owned')) || Store.player(lsGet('rl.last')); }
 function setSession(id) {
   S.me = id;
   try { if (id) sessionStorage.setItem('rl.session', id); else sessionStorage.removeItem('rl.session'); } catch (e) {}
@@ -699,7 +701,10 @@ function viewBoard() {
         '<span class="num" style="font-size:19px;color:' + ((p.balance || 0) <= 0 ? 'var(--lose)' : 'var(--ivory)') + '">' + money(p.balance || 0) + '</span>' + ICON.lock + '</button>';
     }).join('') + '</div>';
   }
-  h += '<div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;padding-top:8px"><button class="gold" data-act="newplayer">' + ICON.plus + t('new_player') + '</button>';
+  var mine = ownedPlayer();
+  h += '<div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;padding-top:8px">';
+  if (!mine) h += '<button class="gold" data-act="newplayer">' + ICON.plus + t('new_player') + '</button>';
+  else if (!me()) h += '<button class="gold" data-act="pick" data-id="' + esc(mine.id) + '">Play as ' + esc(mine.name) + '</button>';
   if (Store.mode === 'local') h += '<p class="notice">' + t('local_note') + '</p>';
   h += '</div></div>';
   return h;
@@ -732,6 +737,7 @@ async function pressKey(k) {
   var hashv = await sha(p.salt + ':' + S.pin);
   if (hashv === p.pinHash) {
     S.pin = ''; S.pinTries = 0; setSession(p.id);
+    if (!ownedPlayer()) lsSet('rl.owned', p.id);
     await afterLogin();
   } else {
     S.pinTries++; S.pin = '';
@@ -779,6 +785,7 @@ function nextColorIdx() {
   return i;
 }
 async function createPlayer() {
+  if (ownedPlayer()) { toast('This device already has a player. Each person plays with one player.'); go('board'); return; }
   var name = $('np-name').value.trim().replace(/\s+/g, ' ');
   var pin = $('np-pin').value, pin2 = $('np-pin2').value, err = $('nperr');
   if (name.length < 2 || name.length > 16) { err.textContent = t('err_name'); return; }
@@ -791,6 +798,7 @@ async function createPlayer() {
   if (Store.mode === 'db' && !Store.player(id)) Store.players.push(Object.assign({}, data, {id: id}));
   S.npName = '';
   setSession(id);
+  lsSet('rl.owned', id);
   await afterLogin();
 }
 
@@ -1215,7 +1223,7 @@ document.addEventListener('click', function (ev) {
   }
   if (act === 'key') { pressKey(el.getAttribute('data-k')); return; }
   if (act === 'keydel') { S.pin = S.pin.slice(0, -1); render(); return; }
-  if (act === 'newplayer') { go('newplayer'); return; }
+  if (act === 'newplayer') { if (ownedPlayer()) { toast('This device already has a player. Each person plays with one player.'); return; } go('newplayer'); return; }
   if (act === 'creategroup') { if (!me()) S.after = 'creategroup'; go('creategroup'); return; }
   if (act === 'invite') { go('invite', {inviteCode: el.getAttribute('data-code')}); return; }
   if (act === 'copy') {
