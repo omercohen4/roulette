@@ -15,8 +15,8 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=1792571255"></script>
-<script>window.GAME_URL = "https://omercohen4.github.io/roulette/"; window.APP_VERSION = "1792571255";</script>
+<script src="firebase-config.js?v=1792571546"></script>
+<script>window.GAME_URL = "https://omercohen4.github.io/roulette/"; window.APP_VERSION = "1792571546";</script>
 </head>
 <body>
 <title>Roulette</title>
@@ -134,7 +134,7 @@ button{cursor:pointer}
 .rack .chip{width:50px;height:50px;border:none;padding:0;transition:transform .15s}
 .rack .chip>span{font-size:12px}
 .rack .chip.on{transform:translateY(-10px);outline:2px solid var(--gold);outline-offset:3px}
-.hint{align-self:center;display:flex;align-items:center;gap:8px;min-height:30px;padding:4px 12px;box-sizing:border-box;border-radius:15px;background:rgba(226,190,106,.16);border:1px solid rgba(226,190,106,.4);font-size:12px;color:var(--gold-hi);text-align:center}
+.hint{margin-bottom:14px;align-self:center;display:flex;align-items:center;gap:8px;min-height:30px;padding:4px 12px;box-sizing:border-box;border-radius:15px;background:rgba(226,190,106,.16);border:1px solid rgba(226,190,106,.4);font-size:12px;color:var(--gold-hi);text-align:center}
 
 /* overlays and wheels */
 .overlay{position:fixed;inset:0;z-index:30;background:url("assets/felt.svg"),radial-gradient(circle at 50% 38%,#2B66D4 0%,#143D92 40%,#071742 75%,#02081C 100%);background-color:#02081C;overflow-y:auto}
@@ -187,7 +187,7 @@ button{cursor:pointer}
 <script>
 (function () {
 'use strict';
-var WHEEL = 'assets/thumb.webp?v=1792571255', BOWL = 'assets/bowl.webp?v=1792571255', ROTOR = 'assets/rotor.webp?v=1792571255', LIGHT = 'assets/light.webp?v=1792571255';
+var WHEEL = 'assets/thumb.webp?v=1792571546', BOWL = 'assets/bowl.webp?v=1792571546', ROTOR = 'assets/rotor.webp?v=1792571546', LIGHT = 'assets/light.webp?v=1792571546';
 var ballAngle = 0, ballRel = 0;
 function wheelLayers(rotorId, rotorDeg, ballHTML) {
   return '<img src="' + BOWL + '" alt=""><div class="w-rotor"' + (rotorId ? ' id="' + rotorId + '"' : '') + ' style="position:absolute;inset:0;transform:rotate(' + (rotorDeg || 0) + 'deg)"><img src="' + ROTOR + '" alt="">' + (ballHTML || '') + '</div><img src="' + LIGHT + '" alt="" style="pointer-events:none">';
