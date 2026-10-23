@@ -15,8 +15,8 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=1792572260"></script>
-<script>window.GAME_URL = "https://omercohen4.github.io/roulette/"; window.APP_VERSION = "1792572260";</script>
+<script src="firebase-config.js?v=1792736218"></script>
+<script>window.GAME_URL = "https://omercohen4.github.io/roulette/"; window.APP_VERSION = "1792736218";</script>
 </head>
 <body>
 <title>Roulette</title>
@@ -195,7 +195,7 @@ button{cursor:pointer}
 <script>
 (function () {
 'use strict';
-var WHEEL = 'assets/thumb.webp?v=1792572260', BOWL = 'assets/bowl.webp?v=1792572260', ROTOR = 'assets/rotor.webp?v=1792572260', LIGHT = 'assets/light.webp?v=1792572260';
+var WHEEL = 'assets/thumb.webp?v=1792736218', BOWL = 'assets/bowl.webp?v=1792736218', ROTOR = 'assets/rotor.webp?v=1792736218', LIGHT = 'assets/light.webp?v=1792736218';
 var ballAngle = 0, ballRel = 0;
 function wheelLayers(rotorId, rotorDeg, ballHTML) {
   return '<img src="' + BOWL + '" alt=""><div class="w-rotor"' + (rotorId ? ' id="' + rotorId + '"' : '') + ' style="position:absolute;inset:0;transform:rotate(' + (rotorDeg || 0) + 'deg)"><img src="' + ROTOR + '" alt="">' + (ballHTML || '') + '</div><img src="' + LIGHT + '" alt="" style="pointer-events:none">';
@@ -213,8 +213,8 @@ var CHIPS = [
   {v:50, c:'#D9611E', d:'#7A320A', s:'#F6EFDC', t:'#F6EFDC'}
 ];
 // Lucky wheel: slice size equals the real chance.
-var PRIZE_SLICES = [[1,0,40.8],[0,40.8,74.4],[2,74.4,110.4],[5,110.4,124.8],[1,124.8,165.6],[3,165.6,183.6],[0,183.6,217.2],[2,217.2,253.2],[5,253.2,267.6],[1,267.6,308.4],[3,308.4,326.4],[0,326.4,360]];
-var PRIZE_WEIGHTS = [[0,28],[1,34],[2,20],[3,10],[5,8]];
+var PRIZE_SLICES = [[5,0,40.8],[0,40.8,74.4],[10,74.4,110.4],[20,110.4,124.8],[5,124.8,165.6],[15,165.6,183.6],[0,183.6,217.2],[10,217.2,253.2],[20,253.2,267.6],[5,267.6,308.4],[15,308.4,326.4],[0,326.4,360]];
+var PRIZE_WEIGHTS = [[0,28],[5,34],[10,20],[15,10],[20,8]];
 var LUCKY_PER_DAY = 10;
 
 var STR = {
@@ -237,7 +237,7 @@ en: {
   red:'RED', black:'BLACK', green:'GREEN', even:'EVEN', odd:'ODD', low:'1–18', high:'19–36', d1:'1st 12', d2:'2nd 12', d3:'3rd 12', col:'2 to 1',
   b_straight:'Number {a}', b_split:'Split {a}', b_street:'Row {a}', b_corner:'Corner {a}', b_line:'Two rows {a}', b_trio:'Trio {a}', b_four:'First four 0–3',
   b_col:'Column {a}', b_doz:'{a}', pays:'pays {a} to 1',
-  broke_text:'Tough spin. Watch a short ad to spin the Lucky Wheel and get back in the game.', lucky:'Lucky Wheel', up_to:'Win up to $5',
+  broke_text:'Tough spin. Watch a short ad to spin the Lucky Wheel and get back in the game.', lucky:'Lucky Wheel', up_to:'Win up to $20',
   spins_left:'{n} spins left today', watch:'Watch ad & spin', come_back:'No spins left today. Come back tomorrow.',
   ad:'Advertisement', ad_wait:'Your spin unlocks in {s}', ad_space:'Ad space', ad_done:'Spin unlocked', continue:'Continue',
   spin_wheel:'Spin the wheel', you_won:'YOU WON', nothing:'Nothing this time', odds:'The odds', slice:'Slice size = real chance',
@@ -1240,14 +1240,14 @@ function viewLucky() {
   var p = me(); if (!p) { S.view = 'board'; return viewBoard(); }
   var labels = PRIZE_SLICES.map(function (s) {
     var mid = (s[1] + s[2]) / 2, none = s[0] === 0;
-    return '<span class="plabel" style="transform:rotate(' + mid + 'deg) translateY(calc(var(--lw) * -' + (none ? 0.347 : 0.367) + '));font-family:' + (none ? 'var(--ui)' : 'var(--display)') + ';font-size:' + (none ? 10 : (s[0] === 5 ? 17 : 20)) + 'px;color:' + (s[0] === 5 ? '#1A1206' : (none ? 'var(--soft)' : 'var(--ivory)')) + '">' + (none ? esc(t('no_win_lbl')) : '$' + s[0]) + '</span>';
+    return '<span class="plabel" style="transform:rotate(' + mid + 'deg) translateY(calc(var(--lw) * -' + (none ? 0.347 : 0.367) + '))' + (s[2] - s[1] < 25 ? ' rotate(-90deg)' : '') + ';font-family:' + (none ? 'var(--ui)' : 'var(--display)') + ';font-size:' + (none ? 10 : (s[2] - s[1] < 25 ? 17 : 20)) + 'px;color:' + (s[0] === 20 ? '#1A1206' : (none ? 'var(--soft)' : 'var(--ivory)')) + '">' + (none ? esc(t('no_win_lbl')) : '$' + s[0]) + '</span>';
   }).join('');
   var h = '<div class="screen" style="align-items:center"><div class="rays" style="position:fixed"></div>';
   h += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;position:relative"><span class="eyebrow" style="color:var(--gold-hi);letter-spacing:.32em">' + t('lucky') + '</span><span class="small muted" id="luckyleft">' + t('spins_left', {n: luckyLeft(p)}) + '</span></div>';
   h += '<div class="wheelbox" id="luckybox" style="margin-top:14px;--lw:min(300px,80vw,38vh);width:var(--lw)"><div style="position:absolute;inset:-4%;border-radius:50%;background:radial-gradient(circle,var(--gold-hi),var(--gold-lo));box-shadow:0 0 60px rgba(226,190,106,.5),0 24px 40px rgba(0,0,0,.6)"></div>';
   h += '<div class="prize-rot" id="luckyrot" style="transform:rotate(' + luckyAngle + 'deg)"><div class="prize"></div>' + labels + '</div><span class="hub"></span><div class="pointer" style="border-top-color:var(--ivory)"></div></div>';
   h += '<div id="luckyres" style="display:flex;flex-direction:column;align-items:center;gap:2px;min-height:76px;position:relative;margin-top:8px"></div>';
-  h += '<div class="card" id="luckyprompt" style="align-self:stretch;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;position:relative"><span class="num" style="font-size:20px;font-weight:900">Spin the wheel to win a prize</span><span class="small muted">Prizes up to $5 in chips, straight to your balance</span></div>';
+  h += '<div class="card" id="luckyprompt" style="align-self:stretch;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;position:relative"><span class="num" style="font-size:20px;font-weight:900">Spin the wheel to win a prize</span><span class="small muted">Prizes up to $20 in chips, straight to your balance</span></div>';
   h += '<div id="luckyact" style="align-self:stretch;margin-top:auto;display:flex;flex-direction:column;gap:10px;position:relative"><button class="gold" data-act="luckyspin">' + t('spin_wheel') + '</button></div></div>';
   return h;
 }
@@ -1301,7 +1301,7 @@ async function luckySpin() {
     var res = $('luckyres'), act = $('luckyact'), prompt = $('luckyprompt');
     if (prompt) prompt.style.display = 'none';
     var leftEl = $('luckyleft'); if (leftEl) leftEl.textContent = t('spins_left', {n: Math.max(0, LUCKY_PER_DAY - used)});
-    if (prize) { Sound.win(prize === 5); prizePop(prize); } else Sound.lose();
+    if (prize) { Sound.win(prize === 20); prizePop(prize); } else Sound.lose();
     if (res) res.innerHTML = prize ? '<span class="eyebrow" style="color:var(--gold);letter-spacing:.3em">' + t('you_won') + '</span><span class="num" style="font-size:52px;font-weight:900;line-height:1;color:var(--gold-hi);text-shadow:0 0 28px rgba(226,190,106,.55)">$' + prize + '</span>' : '<span class="num" style="font-size:28px;font-weight:900;color:var(--muted);margin-top:16px">' + t('nothing') + '</span>';
     var left = LUCKY_PER_DAY - used;
     if (act) {
