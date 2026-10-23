@@ -15,8 +15,8 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=1792736218"></script>
-<script>window.GAME_URL = "https://omercohen4.github.io/roulette/"; window.APP_VERSION = "1792736218";</script>
+<script src="firebase-config.js?v=1792736800"></script>
+<script>window.GAME_URL = "https://omercohen4.github.io/roulette/"; window.APP_VERSION = "1792736800";</script>
 </head>
 <body>
 <title>Roulette</title>
@@ -195,7 +195,7 @@ button{cursor:pointer}
 <script>
 (function () {
 'use strict';
-var WHEEL = 'assets/thumb.webp?v=1792736218', BOWL = 'assets/bowl.webp?v=1792736218', ROTOR = 'assets/rotor.webp?v=1792736218', LIGHT = 'assets/light.webp?v=1792736218';
+var WHEEL = 'assets/thumb.webp?v=1792736800', BOWL = 'assets/bowl.webp?v=1792736800', ROTOR = 'assets/rotor.webp?v=1792736800', LIGHT = 'assets/light.webp?v=1792736800';
 var ballAngle = 0, ballRel = 0;
 function wheelLayers(rotorId, rotorDeg, ballHTML) {
   return '<img src="' + BOWL + '" alt=""><div class="w-rotor"' + (rotorId ? ' id="' + rotorId + '"' : '') + ' style="position:absolute;inset:0;transform:rotate(' + (rotorDeg || 0) + 'deg)"><img src="' + ROTOR + '" alt="">' + (ballHTML || '') + '</div><img src="' + LIGHT + '" alt="" style="pointer-events:none">';
@@ -488,14 +488,25 @@ function defaultTab() {
   return 'all';
 }
 
+var NEEDS_PLAYER = ['board', 'table', 'invite', 'creategroup', 'profile', 'broke', 'lucky'];
+function gate() {
+  if (Store.mode === 'loading') { go('gate'); return; }
+  if (me()) { go('board'); return; }
+  var mine = ownedPlayer();
+  if (mine) go('login', {loginId: mine.id, pin: ''});
+  else go('newplayer');
+}
 function go(view, opts) { S.view = view; Object.assign(S, opts || {}); render(); window.scrollTo(0, 0); }
 
 function render() {
   document.documentElement.lang = lang;
   document.documentElement.dir = 'ltr';
+  if (!me() && NEEDS_PLAYER.indexOf(S.view) >= 0) { gate(); return; }
   var v = S.view, html = '';
   $('app').classList.toggle('lock', v === 'welcome');
   if (v === 'welcome') html = viewWelcome();
+  else if (v === 'gate') html = '<div class="screen" style="align-items:center;justify-content:center"><p class="notice">' + t('loading') + '</p></div>';
+  else if (v === 'pickplayer') html = viewPickPlayer();
   else if (v === 'board') html = viewBoard();
   else if (v === 'login') html = viewLogin();
   else if (v === 'newplayer') html = viewNewPlayer();
@@ -638,7 +649,7 @@ function enterCasino() {
   try { w.animate([{transform: 'scale(1) rotate(0deg)', opacity: 1}, {transform: 'scale(1.2) rotate(220deg)', opacity: 1, offset: 0.45}, {transform: 'scale(3.6) rotate(560deg)', opacity: 0}], {duration: 1600, easing: 'cubic-bezier(.5,0,.2,1)', fill: 'forwards'}); } catch (e) {}
   setTimeout(function () {
     S.entering = false;
-    go(S.pendingJoin ? 'board' : 'board');
+    gate();
     try { $('app').animate([{opacity: 0, transform: 'scale(.97)'}, {opacity: 1, transform: 'none'}], {duration: 450, easing: 'ease-out'}); } catch (e) {}
   }, 1450);
 }
@@ -675,7 +686,7 @@ function viewBoard() {
   var h = '<div class="screen">';
   h += '<div class="row"><img src="' + WHEEL + '" alt="" style="width:60px;height:60px;border-radius:50%;box-shadow:0 0 0 2px rgba(226,190,106,.5),0 0 30px rgba(120,190,255,.55)">';
   h += '<div class="grow"><h1 class="h1" style="font-size:34px">Roulette</h1><div class="eyebrow" style="color:var(--gold);letter-spacing:.3em">EUROPEAN · SINGLE ZERO</div></div>' + langToggle() + '</div>';
-  if (me()) h += '<div class="row small" style="justify-content:space-between"><span class="muted">' + esc(t('playing_as', {name: me().name})) + '</span><span class="row" style="gap:8px"><button class="pill-btn" data-act="totable" style="height:36px">' + t('spin') + '</button><button class="pill-btn" data-act="profile" style="height:36px">Profile</button><button class="pill-btn" data-act="logout" style="height:36px">' + t('log_out') + '</button></span></div>';
+  if (me()) h += '<div class="row small" style="justify-content:space-between"><span class="muted">' + esc(t('playing_as', {name: me().name})) + '</span><span class="row" style="gap:8px"><button class="pill-btn" data-act="profile" style="height:36px">Profile</button><button class="pill-btn" data-act="logout" style="height:36px">' + t('log_out') + '</button></span></div>';
   h += '<div class="tabs" role="tablist">' + tabs + '</div>';
 
   if (Store.mode === 'loading') return h + '<p class="notice" style="margin-top:40px">' + t('loading') + '</p></div>';
@@ -699,7 +710,7 @@ function viewBoard() {
         return '<div class="pod">' + avatar(x[0], x[2], '0 0 0 3px ' + medals[x[1] - 1] + ',0 8px 20px rgba(0,0,0,.4)') + '<span class="nm">' + esc(x[0].name) + '</span><div class="base" style="height:' + x[3] + 'px"><span class="num" style="font-size:26px;font-weight:900;color:' + medals[x[1] - 1] + ';line-height:1">' + x[1] + '</span><span class="num" style="font-size:17px">' + money(x[0].balance || 0) + '</span></div></div>';
       }).join('') + '</div>';
     }
-    h += '<div class="row" style="justify-content:space-between"><span class="eyebrow">' + (S.tab === 'all' ? t('players_n', {n: list.length}) : t('board')) + '</span><span class="small muted">' + t('tap_name') + '</span></div>';
+    h += '<div class="row" style="justify-content:space-between"><span class="eyebrow">' + (S.tab === 'all' ? t('players_n', {n: list.length}) : t('board')) + '</span></div>';
     var medalC = ['#F5D06A', '#D9E1EE', '#E59A5C'];
     h += '<div class="list">' + list.map(function (p, i) {
       var isMe = hp && p.id === hp.id;
@@ -711,8 +722,7 @@ function viewBoard() {
   }
   var mine = ownedPlayer();
   h += '<div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;padding-top:8px">';
-  if (!mine) h += '<button class="gold" data-act="newplayer">' + ICON.plus + t('new_player') + '</button>';
-  else if (!me()) h += '<button class="gold" data-act="pick" data-id="' + esc(mine.id) + '">Play as ' + esc(mine.name) + '</button>';
+  h += '<button class="gold" data-act="totable" style="letter-spacing:.16em">' + ICON.spin + 'PLAY</button>';
   if (Store.mode === 'local') h += '<p class="notice">' + t('local_note') + '</p>';
   h += '</div></div>';
   return h;
@@ -721,19 +731,20 @@ function viewBoard() {
 // ---------- PIN login ----------
 function viewLogin() {
   var p = Store.player(S.loginId);
-  if (!p) { S.view = 'board'; return viewBoard(); }
+  if (!p) { setTimeout(gate, 0); return ''; }
   var rank = ranked(Store.players).map(function (x) { return x.id; }).indexOf(p.id) + 1;
   var locked = Date.now() < S.lockUntil;
   var h = '<div class="screen" style="align-items:center">';
-  h += '<div class="row" style="align-self:stretch">' + backBtn('home', t('board')) + '<span class="grow"></span>' + langToggle() + '</div>';
+  h += '<div class="row" style="align-self:stretch"><span class="grow"></span>' + langToggle() + '</div>';
   h += '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:10px">' + avatar(p, 84, '0 0 40px rgba(61,224,200,.35)');
-  h += '<h1 class="h1" style="font-size:32px">' + esc(p.name) + '</h1><span class="small muted">' + t('rank_on', {n: rank}) + ' · <span class="num" style="color:var(--ivory);font-size:15px">' + money(p.balance || 0) + '</span></span></div>';
+  h += '<span class="eyebrow" style="color:var(--gold)">Welcome back</span><h1 class="h1" style="font-size:32px;text-align:center">Hello, ' + esc(p.name) + '</h1><span class="small muted">' + t('rank_on', {n: rank}) + ' · <span class="num" style="color:var(--ivory);font-size:15px">' + money(p.balance || 0) + '</span></span></div>';
   h += '<div style="display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:10px"><span style="font-size:14px;color:var(--soft)">' + t('enter_pin') + '</span>';
   h += '<div class="dots" id="dots" role="img" aria-label="' + S.pin.length + '/4">' + [0, 1, 2, 3].map(function (i) { return '<span class="' + (i < S.pin.length ? 'on' : '') + '"></span>'; }).join('') + '</div>';
   h += '<div class="err" id="pinerr">' + (locked ? t('locked', {s: Math.ceil((S.lockUntil - Date.now()) / 1000)}) : '') + '</div></div>';
   h += '<div class="keypad" dir="ltr" style="margin-top:auto">';
   [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(function (n) { h += '<button class="key" data-act="key" data-k="' + n + '">' + n + '</button>'; });
   h += '<span></span><button class="key" data-act="key" data-k="0">0</button><button class="key plain" data-act="keydel" aria-label="Delete">' + ICON.del + '</button></div>';
+  h += '<button class="pill-btn" data-act="pickplayer" style="margin-top:8px;background:none;border:none;color:var(--muted);text-decoration:underline">Not ' + esc(p.name) + '? Log in as someone else</button>';
   h += '<span class="small muted" style="margin-top:6px">' + t('only_you') + '</span></div>';
   return h;
 }
@@ -765,7 +776,7 @@ function lockTick() {
 async function afterLogin() {
   if (S.pendingJoin) { await joinGroup(S.pendingJoin); return; }
   if (S.after === 'creategroup') { S.after = null; go('creategroup'); return; }
-  enterTable();
+  go('board');
 }
 function enterTable() {
   var p = me(); if (!p) { go('board'); return; }
@@ -773,10 +784,25 @@ function enterTable() {
   if ((p.balance || 0) < 1) go('broke'); else go('table');
 }
 
+// ---------- who are you? ----------
+function viewPickPlayer() {
+  var mine = ownedPlayer();
+  var h = '<div class="screen">';
+  h += '<div class="row">' + backBtn('gate', t('back')) + '<h1 class="h1 grow" style="font-size:28px">Who\'s playing?</h1>' + langToggle() + '</div>';
+  h += '<p class="small muted" style="margin:0">Tap your name, then enter your PIN.</p>';
+  h += '<div class="list">' + ranked(Store.players).map(function (pl) {
+    return '<button class="prow" data-act="loginas" data-id="' + esc(pl.id) + '">' + avatar(pl, 34) + '<span class="grow nm">' + esc(pl.name) + '</span><span class="num" style="font-size:17px">' + money(pl.balance || 0) + '</span>' + ICON.lock + '</button>';
+  }).join('') + '</div>';
+  if (!mine) h += '<button class="gold" data-act="newplayer" style="margin-top:auto">' + ICON.plus + 'New here? Create your player</button>';
+  h += '</div>';
+  return h;
+}
+
 // ---------- new player ----------
 function viewNewPlayer() {
   var h = '<div class="screen">';
-  h += '<div class="row">' + backBtn('home', t('board')) + '<h1 class="h1 grow" style="font-size:28px">' + t('np_title') + '</h1>' + langToggle() + '</div>';
+  h += '<div class="row"><h1 class="h1 grow" style="font-size:28px">Create your player</h1>' + langToggle() + '</div>';
+  h += '<p style="margin:0;font-size:14px;line-height:1.5;color:var(--soft)">Pick a name and a 4-digit PIN. This phone will remember you, and you\'ll enter the PIN each time you play.</p>';
   var preview = {name: S.npName || '?', colorIdx: nextColorIdx()};
   h += '<div class="card row" style="gap:16px">' + avatar(preview, 64, '0 0 30px rgba(183,156,255,.4)') + '<div style="display:flex;flex-direction:column;gap:4px"><span class="small muted">' + t('starting') + '</span><span class="num" style="font-size:30px;font-weight:900;line-height:1;color:var(--gold-hi)">$100</span><span style="font-size:11px;color:#CDBEFF">' + t('color_note') + '</span></div></div>';
   h += '<form id="npform" style="display:flex;flex-direction:column;gap:16px" autocomplete="off">';
@@ -784,7 +810,9 @@ function viewNewPlayer() {
   h += '<div class="field"><label class="eyebrow" for="np-pin">' + t('choose_pin') + '</label><input class="input pin-input" id="np-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" dir="ltr"></div>';
   h += '<div class="field"><label class="eyebrow" for="np-pin2">' + t('again') + '</label><input class="input pin-input" id="np-pin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" dir="ltr"><span class="small muted">' + t('remember') + '</span></div>';
   h += '<div class="err" id="nperr"></div>';
-  h += '<button class="gold" type="submit">' + t('create_play') + '</button></form></div>';
+  h += '<button class="gold" type="submit">' + t('create_play') + '</button></form>';
+  if (Store.players.length) h += '<button class="pill-btn" data-act="pickplayer" style="align-self:center;background:none;border:none;color:var(--muted);text-decoration:underline">Already have a player? Log in</button>';
+  h += '</div>';
   return h;
 }
 function nextColorIdx() {
@@ -1335,11 +1363,10 @@ document.addEventListener('click', function (ev) {
   if (act === 'sound') { Sound.on = !Sound.on; lsSet('rl.sound', Sound.on ? 'on' : 'off'); render(); if (Sound.on) Sound.tap(); return; }
   if (act === 'tab') { closeLayer(); go('board', {tab: el.getAttribute('data-tab')}); return; }
   if (act === 'home') { closeLayer(); S.pin = ''; go('board'); return; }
-  if (act === 'pick') {
-    var id = el.getAttribute('data-id');
-    if (S.me === id) { if (S.pendingJoin) joinGroup(S.pendingJoin); else enterTable(); return; }
-    go('login', {loginId: id, pin: ''}); return;
-  }
+  if (act === 'pick') { if (S.me === el.getAttribute('data-id')) enterTable(); return; }
+  if (act === 'loginas') { go('login', {loginId: el.getAttribute('data-id'), pin: ''}); return; }
+  if (act === 'pickplayer') { go('pickplayer', {pin: ''}); return; }
+  if (act === 'gate') { gate(); return; }
   if (act === 'key') { pressKey(el.getAttribute('data-k')); return; }
   if (act === 'keydel') { S.pin = S.pin.slice(0, -1); render(); return; }
   if (act === 'newplayer') { if (ownedPlayer()) { toast('This device already has a player. Each person plays with one player.'); return; } go('newplayer'); return; }
@@ -1354,7 +1381,7 @@ document.addEventListener('click', function (ev) {
   }
   if (act === 'profile') { if (S.view !== 'profile') S.profileBack = S.view; S.bets = {}; S.order = []; go('profile'); return; }
   if (act === 'profileback') { var bk = S.profileBack || 'board'; if (bk === 'table') enterTable(); else go(bk); return; }
-  if (act === 'logout') { setSession(null); go('board'); return; }
+  if (act === 'logout') { setSession(null); gate(); return; }
   if (act === 'totable') { closeLayer(); enterTable(); return; }
   if (act === 'leave') { S.bets = {}; S.order = []; S.lastResult = null; go('board'); return; }
   if (act === 'chip') { S.chip = +el.getAttribute('data-v'); render(); return; }
@@ -1404,7 +1431,7 @@ checkForUpdate();
 render();
 Store.init().then(function () {
   if (S.me && !Store.player(S.me)) setSession(null);
-  render();
+  if (S.view === 'gate') gate(); else render();
 });
 })();
 </script>
